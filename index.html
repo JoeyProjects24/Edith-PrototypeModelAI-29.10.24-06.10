@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EDITH Interface</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Krona+One&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-around;
+      font-family: 'Krona One', sans-serif;
+      background-color: white;
+      background-image: radial-gradient(#333 1px, transparent 1px);
+      overflow: hidden;
+      /* Responsive background dot size */
+      background-size: calc(100vw / 20) calc(100vw / 20);
+    }
+
+    /* Time and Date */
+    .time-date {
+      font-size: 4vw;
+      color: #333;
+      text-align: center;
+    }
+
+    /* Circle Container */
+    .circle-container {
+      width: 45vw;
+      height: 45vw;
+      border-radius: 50%;
+      position: relative;
+      border: 3px solid #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: border-width 0.1s ease-in-out, box-shadow 0.1s ease-in-out;
+    }
+
+    /* Inner Circle */
+    .circle {
+      width: 70%;
+      height: 70%;
+      background-color: #333;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Text inside Circle */
+    .circle-text {
+      font-family: 'Krona One', sans-serif;
+      font-size: 3vw;
+      color: white;
+      text-align: center;
+    }
+
+    /* Microphone Button */
+    .mic-button {
+      width: 12vw;
+      height: 12vw;
+      background-color: #333;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 6vw;
+    }
+
+    /* Microphone Label */
+    .mic-label {
+      font-size: 2.5vw;
+      color: #333;
+      margin-top: 5px;
+      text-align: center;
+    }
+
+    /* Pulse animation for louder sounds */
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 5px rgba(51, 51, 51, 0.2); }
+      50% { box-shadow: 0 0 20px rgba(51, 51, 51, 0.5); }
+    }
+
+    /* Larger screens */
+    @media (min-width: 768px) {
+      .time-date {
+        font-size: 24px;
+      }
+      .circle-container {
+        width: 280px;
+        height: 280px;
+      }
+      .circle-text {
+        font-size: 28px;
+      }
+      .mic-button {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+      }
+      .mic-label {
+        font-size: 16px;
+      }
+      body {
+        background-size: 20px 20px; /* Fixed size for larger screens */
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Time and Date Section -->
+  <div class="time-date" id="timeDate"></div>
+
+  <!-- Circle Section -->
+  <div class="circle-container" id="circleContainer">
+    <div class="circle">
+      <div class="circle-text">EDITH</div>
+    </div>
+  </div>
+
+  <!-- Microphone Button -->
+  <button class="mic-button" id="micButton">&#x1F3A4;</button>
+  <div class="mic-label">MUTE</div>
+
+  <script>
+    // Update Time and Date in 24-hour format
+    function updateTimeAndDate() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const day = now.toLocaleString('en-US', { weekday: 'short' });
+      const date = now.toLocaleString('en-US', { day: 'numeric', month: 'short' });
+      document.getElementById('timeDate').textContent = `${hours}:${minutes} ${day}, ${date}`;
+    }
+    setInterval(updateTimeAndDate, 1000); // Update every second
+    updateTimeAndDate(); // Initial call
+
+    // Microphone Animation Effect
+    const circleContainer = document.getElementById('circleContainer');
+    const micButton = document.getElementById('micButton');
+    let isAnimating = true;
+
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        const microphone = audioContext.createMediaStreamSource(stream);
+
+        microphone.connect(analyser);
+        analyser.fftSize = 256;
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        function animateBorder() {
+          if (!isAnimating) return;
+
+          analyser.getByteFrequencyData(dataArray);
+          const volume = Math.max(...dataArray);
+
+          const borderWidth = Math.min(Math.max(volume / 10, 3), 25);
+          circleContainer.style.borderWidth = `${borderWidth}px`;
+          circleContainer.style.boxShadow = `0 0 ${borderWidth * 2}px rgba(51, 51, 51, 0.3)`;
+
+          if (volume > 100) {
+            circleContainer.style.animation = 'pulse 0.5s ease-in-out';
+          } else {
+            circleContainer.style.animation = 'none';
+          }
+
+          requestAnimationFrame(animateBorder);
+        }
+
+        animateBorder();
+
+        micButton.addEventListener('click', () => {
+          isAnimating = !isAnimating;
+          if (isAnimating) animateBorder();
+        });
+      }).catch((error) => {
+        console.error('Error accessing microphone:', error);
+        alert('Microphone access is required for the animation.');
+      });
+    } else {
+      alert('Web Audio API is not supported in your browser.');
+    }
+  </script>
+</body>
+</html>
